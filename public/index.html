@@ -22,7 +22,7 @@
     </header>
 
     <aside class="privacy-banner">
-      <strong>Локальная граница:</strong> фото и шрифты остаются в памяти браузера; ignored brand profile читает только локальный Node-процесс. Внешней загрузки и публикации нет.
+      <strong>Локальная граница:</strong> фото и шрифты остаются в памяти браузера; ignored brand profile и проверенные Figma-экспорты читает только локальный Node-процесс. Внешней загрузки и публикации нет.
     </aside>
 
     <main class="shell">
@@ -181,6 +181,27 @@
             <label class="file-button secondary">Выбрать локальный brand JSON
               <input id="brand-file" type="file" accept="application/json,.json">
             </label>
+            <div class="asset-panel">
+              <div class="asset-panel-heading">
+                <strong>Оригиналы из Figma</strong>
+                <span id="figma-status" class="asset-status">Проверка локального реестра…</span>
+              </div>
+              <label>3D-композиция
+                <select id="figma-illustration" disabled>
+                  <option value="">Без 3D-композиции</option>
+                </select>
+              </label>
+              <label class="check">
+                <input id="vk-cloud-context" type="checkbox" disabled>
+                Материал действительно относится к VK Cloud
+              </label>
+              <label class="check">
+                <input id="include-logo" type="checkbox" disabled>
+                Добавить оригинальный логотип VK Tech с сохранением пропорций
+              </label>
+              <p id="figma-usage" class="helper">3D-композиция не выбрана.</p>
+              <a id="figma-source" class="source-link" href="#" target="_blank" rel="noreferrer" hidden>Открыть точный узел Figma</a>
+            </div>
             <div class="grid two">
               <label class="file-button secondary">Загрузить шрифт заголовка
                 <input id="headline-font-file" type="file" accept=".otf,.ttf,font/otf,font/ttf">

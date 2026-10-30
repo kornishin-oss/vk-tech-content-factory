@@ -13,6 +13,8 @@ const state = {
   headlineFont: "Inter",
   bodyFont: "Inter",
   fontFiles: [],
+  localFigmaRegistry: null,
+  localImageCache: new Map(),
 };
 
 const platformOrder = ["instagram", "vkontakte", "telegram", "max", "linkedin"];
@@ -27,6 +29,18 @@ async function api(path, body) {
   if (!response.ok) {
     const detail = Array.isArray(value.issues) && value.issues.length
       ? `\n${value.issues.map((issue) => typeof issue === "string" ? issue : issue.message).join("\n")}`
+      : "";
+    throw new Error(`${value.error || "Ошибка запроса"}${detail}`);
+  }
+  return value;
+}
+
+async function apiGet(path) {
+  const response = await fetch(path, { cache: "no-store" });
+  const value = await response.json();
+  if (!response.ok) {
+    const detail = Array.isArray(value.issues) && value.issues.length
+      ? `\n${value.issues.join("\n")}`
       : "";
     throw new Error(`${value.error || "Ошибка запроса"}${detail}`);
   }
@@ -444,7 +458,73 @@ function applyBrandProfile(value, fileName) {
   $("#brand-status").textContent = state.brandTokens.profileStatus === "official-export"
     ? "Заявлен официальный профиль · приложением не проверено"
     : "Рабочий локальный профиль · требует сверки";
-  $("#asset-note").textContent = `${state.brandTokens.sourceLabel || fileName}. Профиль загружен локально; логотип и файлы шрифтов не встроены.`;
+  $("#asset-note").textContent = `${state.brandTokens.sourceLabel || fileName}. Профиль загружен локально; оригиналы Figma проверяются отдельным локальным реестром.`;
+}
+
+function figmaAssets(role) {
+  return state.localFigmaRegistry?.assets?.filter((asset) => asset.role === role) || [];
+}
+
+function selectedFigmaIllustration() {
+  const id = $("#figma-illustration").value;
+  return figmaAssets("illustration").find((asset) => asset.id === id) || null;
+}
+
+function figmaProductUseAllowed(asset) {
+  if (!asset || asset.classification !== "product-specific-reference") return true;
+  return asset.contextCategories.includes($("#visual-category").value)
+    && $("#vk-cloud-context").checked;
+}
+
+function updateFigmaAssetDetails() {
+  const asset = selectedFigmaIllustration();
+  const source = $("#figma-source");
+  const usage = $("#figma-usage");
+  const confirmation = $("#vk-cloud-context");
+  confirmation.disabled = !asset;
+  if (!asset) {
+    source.hidden = true;
+    usage.textContent = "3D-композиция не выбрана. Генератор использует фото или техническую геометрию режима.";
+    return;
+  }
+  source.hidden = false;
+  source.href = asset.source.url;
+  source.textContent = `Figma · ${asset.source.nodeId}`;
+  const categoryAllowed = asset.contextCategories.includes($("#visual-category").value);
+  usage.textContent = categoryAllowed
+    ? `${asset.usageNote} Перед сборкой подтвердите контекст VK Cloud.`
+    : `${asset.usageNote} Выберите серию SAAS / TECH или CLIENT CASE.`;
+  usage.classList.toggle("warning-text", !categoryAllowed);
+}
+
+function renderFigmaAssetControls() {
+  const select = $("#figma-illustration");
+  const logo = figmaAssets("logo")[0];
+  const illustrations = figmaAssets("illustration");
+  select.disabled = illustrations.length === 0;
+  select.innerHTML = `<option value="">Без 3D-композиции</option>${illustrations.map((asset) => (
+    `<option value="${escapeHtml(asset.id)}">${escapeHtml(asset.name)}</option>`
+  )).join("")}`;
+  $("#include-logo").disabled = !logo;
+  $("#figma-status").textContent = state.localFigmaRegistry?.available
+    ? `${state.localFigmaRegistry.assets.length} оригиналов подключено локально`
+    : "Локальный реестр не найден";
+  updateFigmaAssetDetails();
+}
+
+async function loadLocalFigmaRegistry() {
+  try {
+    state.localFigmaRegistry = await apiGet("/api/local-assets");
+    renderFigmaAssetControls();
+    if (state.localFigmaRegistry.available) {
+      $("#asset-note").textContent = `${state.localFigmaRegistry.assets.length} оригинальных Figma-ассетов проверены по SHA-256 и доступны только через локальный сервер.`;
+    }
+  } catch (error) {
+    state.localFigmaRegistry = { available: false, assets: [] };
+    renderFigmaAssetControls();
+    $("#figma-usage").textContent = error.message;
+    $("#figma-usage").classList.add("warning-text");
+  }
 }
 
 async function loadPhoto(event) {
@@ -534,6 +614,48 @@ function drawCover(ctx, image, x, y, width, height) {
   ctx.restore();
 }
 
+function loadLocalAssetImage(asset) {
+  if (!asset) return Promise.resolve(null);
+  if (state.localImageCache.has(asset.id)) return state.localImageCache.get(asset.id);
+  const promise = new Promise((resolve, reject) => {
+    const image = new Image();
+    image.onload = () => resolve(image);
+    image.onerror = () => reject(new Error(`Не удалось прочитать локальный Figma-ассет: ${asset.name}.`));
+    image.src = asset.url;
+  });
+  state.localImageCache.set(asset.id, promise);
+  return promise;
+}
+
+function drawContainedImage(ctx, image, x, y, width, height) {
+  const scale = Math.min(width / image.width, height / image.height);
+  const drawWidth = image.width * scale;
+  const drawHeight = image.height * scale;
+  ctx.drawImage(image, x + (width - drawWidth) / 2, y + (height - drawHeight) / 2, drawWidth, drawHeight);
+}
+
+function drawFigmaIllustration(ctx, image, width, height) {
+  ctx.save();
+  drawContainedImage(ctx, image, width * .49, height * .28, width * .51, height * .55);
+  ctx.restore();
+}
+
+function drawOriginalLogo(ctx, image, width) {
+  const logoWidth = 180;
+  const logoHeight = logoWidth * image.height / image.width;
+  const paddingX = 22;
+  const paddingY = 16;
+  const x = width - 84 - logoWidth;
+  const y = 58;
+  ctx.save();
+  ctx.fillStyle = "rgba(255,255,255,.94)";
+  ctx.beginPath();
+  ctx.roundRect(x - paddingX, y - paddingY, logoWidth + paddingX * 2, logoHeight + paddingY * 2, 18);
+  ctx.fill();
+  ctx.drawImage(image, x, y, logoWidth, logoHeight);
+  ctx.restore();
+}
+
 function drawDominantObject(ctx, mode, width, height) {
   ctx.save();
   const x = width * .78;
@@ -589,15 +711,25 @@ function wrapText(ctx, text, x, y, maxWidth, lineHeight, maxLines) {
 async function renderVisual() {
   const title = $("#visual-title").value.trim();
   if (!title) return alert("Добавьте заголовок визуала.");
-  if ((state.photo || state.brandTokens) && !$("#asset-rights").checked) {
+  const figmaIllustration = selectedFigmaIllustration();
+  const logoAsset = $("#include-logo").checked ? figmaAssets("logo")[0] : null;
+  if (figmaIllustration && state.photo) {
+    return alert("Выберите один доминирующий материал: фотографию или 3D-композицию Figma.");
+  }
+  if (figmaIllustration && !figmaProductUseAllowed(figmaIllustration)) {
+    return alert("Продуктовую 3D-композицию можно использовать только для SAAS / TECH или CLIENT CASE после подтверждения контекста VK Cloud.");
+  }
+  if ((state.photo || state.brandTokens || figmaIllustration || logoAsset) && !$("#asset-rights").checked) {
     return alert("Подтвердите права на локальные материалы.");
   }
   try {
-    if (state.photo || state.brandTokens) {
+    if (state.photo || state.brandTokens || figmaIllustration || logoAsset) {
       await api("/api/assets/validate", {
         assets: [
           ...(state.photo ? [{ kind: "photo", localReference: state.photoName, rightsConfirmed: true }] : []),
           ...(state.brandTokens ? [{ kind: "brand_tokens", localReference: state.brandFileName, rightsConfirmed: true }] : []),
+          ...(figmaIllustration ? [{ kind: "figma_illustration", localReference: `figma:${figmaIllustration.id}`, rightsConfirmed: true, note: figmaIllustration.source.nodeId }] : []),
+          ...(logoAsset ? [{ kind: "figma_logo", localReference: `figma:${logoAsset.id}`, rightsConfirmed: true, note: logoAsset.source.nodeId }] : []),
           ...state.fontFiles.map((font) => ({ kind: "font", localReference: font.name, rightsConfirmed: true, note: font.role })),
         ],
       });
@@ -613,6 +745,16 @@ async function renderVisual() {
   const category = $("#visual-category").value;
   const series = profile.series[category] || "EXPERT CONTENT";
   const subtitle = $("#visual-subtitle").value.trim();
+  let figmaImage;
+  let logoImage;
+  try {
+    [figmaImage, logoImage] = await Promise.all([
+      loadLocalAssetImage(figmaIllustration),
+      loadLocalAssetImage(logoAsset),
+    ]);
+  } catch (error) {
+    return alert(error.message);
+  }
   ctx.clearRect(0, 0, canvas.width, canvas.height);
   ctx.fillStyle = mode.background;
   ctx.fillRect(0, 0, canvas.width, canvas.height);
@@ -623,6 +765,8 @@ async function renderVisual() {
     fade.addColorStop(1, "rgba(0,0,0,0)");
     ctx.fillStyle = fade;
     ctx.fillRect(canvas.width * .42, 0, canvas.width * .36, canvas.height);
+  } else if (figmaImage) {
+    drawFigmaIllustration(ctx, figmaImage, canvas.width, canvas.height);
   } else {
     drawDominantObject(ctx, mode, canvas.width, canvas.height);
   }
@@ -633,12 +777,15 @@ async function renderVisual() {
   ctx.globalAlpha = .78;
   ctx.fillText(series, 84, 74);
   ctx.globalAlpha = 1;
-  ctx.font = `700 78px ${state.headlineFont}, system-ui, sans-serif`;
-  wrapText(ctx, title, 84, 250, state.photo ? 560 : 650, 84, 6);
+  const mediaHeadline = state.photo || figmaImage;
+  const headlineSize = mediaHeadline ? 64 : 78;
+  const headlineLineHeight = mediaHeadline ? 72 : 84;
+  ctx.font = `700 ${headlineSize}px ${state.headlineFont}, system-ui, sans-serif`;
+  wrapText(ctx, title, 84, 250, mediaHeadline ? 410 : 650, headlineLineHeight, 6);
   if (subtitle) {
     ctx.font = `500 30px ${state.bodyFont}, system-ui, sans-serif`;
     ctx.globalAlpha = .8;
-    wrapText(ctx, subtitle, 86, 940, state.photo ? 520 : 620, 42, 3);
+    wrapText(ctx, subtitle, 86, 940, state.photo || figmaImage ? 500 : 620, 42, 3);
     ctx.globalAlpha = 1;
   }
   ctx.fillStyle = mode.accent;
@@ -650,6 +797,7 @@ async function renderVisual() {
   ctx.globalAlpha = .72;
   ctx.fillText(profile.author || "EXPERT CONTENT", 122, 1198);
   ctx.globalAlpha = 1;
+  if (logoImage) drawOriginalLogo(ctx, logoImage, canvas.width);
   $("#download-visual").disabled = false;
 }
 
@@ -769,6 +917,7 @@ function escapeHtml(value) {
 async function bootstrap() {
   state.policy = await fetch("/config/platform-policy.example.json").then((response) => response.json());
   await loadLocalBrandProfile();
+  await loadLocalFigmaRegistry();
   $("#build-plan").addEventListener("click", buildPlan);
   $("#load-example").addEventListener("click", loadSyntheticExample);
   $("#policy-file").addEventListener("change", loadPolicyFile);
@@ -779,7 +928,9 @@ async function bootstrap() {
   $("#body-font-file").addEventListener("change", (event) => loadFontFile(event, "body"));
   $("#visual-category").addEventListener("change", () => {
     $("#visual-mode").value = state.brandTokens?.categoryDefaults?.[$("#visual-category").value] || "matte-mint";
+    updateFigmaAssetDetails();
   });
+  $("#figma-illustration").addEventListener("change", updateFigmaAssetDetails);
   $("#render-visual").addEventListener("click", renderVisual);
   $("#download-visual").addEventListener("click", downloadVisual);
   $("#download-package").addEventListener("click", downloadPackage);

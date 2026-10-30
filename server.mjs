@@ -3,6 +3,7 @@ import { createServer } from "node:http";
 import { extname, join, normalize } from "node:path";
 import { fileURLToPath } from "node:url";
 import { generateDrafts } from "./src/core/drafts.mjs";
+import { loadLocalFigmaAssets, publicFigmaAssetRegistry } from "./src/core/figma-assets.mjs";
 import { validateLocalAssetManifest } from "./src/core/local-assets.mjs";
 import { buildLocalPackage } from "./src/core/package.mjs";
 import { createContentPlan, decidePlanItem, revisePlanItem } from "./src/core/planner.mjs";
@@ -77,6 +78,10 @@ export const server = createServer(async (request, response) => {
       });
     }
 
+    if (request.method === "GET" && url.pathname === "/api/local-assets") {
+      return sendJson(response, 200, publicFigmaAssetRegistry(loadLocalFigmaAssets(root)));
+    }
+
     if (request.method === "POST" && url.pathname === "/api/research") {
       return sendJson(response, 200, buildResearchBacklog(await readJson(request)));
     }
@@ -116,6 +121,22 @@ export const server = createServer(async (request, response) => {
 
     if (request.method !== "GET" && request.method !== "HEAD") {
       return sendJson(response, 405, { error: "Метод не поддерживается." });
+    }
+
+    if (url.pathname.startsWith("/local-assets/figma/")) {
+      const id = decodeURIComponent(url.pathname.slice("/local-assets/figma/".length));
+      const registry = loadLocalFigmaAssets(root);
+      const asset = registry.assets.find((candidate) => candidate.id === id);
+      if (!asset) return sendJson(response, 404, { error: "Локальный Figma-ассет не найден." });
+      response.writeHead(200, {
+        "content-type": "image/svg+xml; charset=utf-8",
+        "content-length": asset.byteLength,
+        "cache-control": "no-store",
+        "x-content-type-options": "nosniff",
+        "content-security-policy": "default-src 'none'; img-src data:; style-src 'unsafe-inline'; sandbox",
+      });
+      if (request.method === "HEAD") return response.end();
+      return createReadStream(asset.filePath).pipe(response);
     }
 
     const file = staticPath(url.pathname);

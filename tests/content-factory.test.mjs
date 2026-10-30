@@ -1,9 +1,12 @@
 import assert from "node:assert/strict";
-import { readdir, readFile } from "node:fs/promises";
+import { createHash } from "node:crypto";
+import { mkdir, mkdtemp, readdir, readFile, rm, writeFile } from "node:fs/promises";
+import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { after, before, describe, test } from "node:test";
 import { fileURLToPath } from "node:url";
 import { generateDrafts } from "../src/core/drafts.mjs";
+import { loadLocalFigmaAssets, productAssetAllowed, publicFigmaAssetRegistry } from "../src/core/figma-assets.mjs";
 import { validateLocalAssetManifest } from "../src/core/local-assets.mjs";
 import { buildLocalPackage } from "../src/core/package.mjs";
 import { createContentPlan, decidePlanItem, revisePlanItem } from "../src/core/planner.mjs";
@@ -191,6 +194,50 @@ describe("local-only assets and package", () => {
       }),
       /не прошёл проверку/,
     );
+  });
+
+  test("loads a checksum-pinned local Figma SVG without exposing its filesystem path", async () => {
+    const fixtureRoot = await mkdtemp(join(tmpdir(), "content-factory-figma-"));
+    try {
+      const assetRoot = join(fixtureRoot, "local-assets", "figma");
+      await mkdir(join(assetRoot, "corporate"), { recursive: true });
+      const svg = '<svg xmlns="http://www.w3.org/2000/svg" width="60" height="19"></svg>';
+      const sha256 = createHash("sha256").update(svg).digest("hex");
+      await writeFile(join(assetRoot, "corporate", "logo.svg"), svg);
+      await writeFile(join(assetRoot, "manifest.local.json"), JSON.stringify({
+        schemaVersion: "figma-assets/v1",
+        assets: [{
+          id: "vk-tech-logo",
+          name: "VK Tech",
+          role: "logo",
+          classification: "corporate",
+          relativePath: "corporate/logo.svg",
+          sha256,
+          figma: {
+            fileKey: "SyntheticFileKey",
+            nodeId: "1:2",
+            sourceUrl: "https://www.figma.com/design/SyntheticFileKey/example?node-id=1-2",
+          },
+        }],
+      }));
+      const registry = loadLocalFigmaAssets(fixtureRoot);
+      const publicRegistry = publicFigmaAssetRegistry(registry);
+      assert.equal(registry.available, true);
+      assert.equal(publicRegistry.assets[0].url, "/local-assets/figma/vk-tech-logo");
+      assert.equal("filePath" in publicRegistry.assets[0], false);
+    } finally {
+      await rm(fixtureRoot, { recursive: true, force: true });
+    }
+  });
+
+  test("gates product-specific Figma assets by content category and explicit context", () => {
+    const asset = {
+      classification: "product-specific-reference",
+      contextCategories: ["tech", "case"],
+    };
+    assert.equal(productAssetAllowed(asset, "tech", true), true);
+    assert.equal(productAssetAllowed(asset, "leadership", true), false);
+    assert.equal(productAssetAllowed(asset, "tech", false), false);
   });
 
   test("packages only approved drafts with author attestation and no publication", () => {

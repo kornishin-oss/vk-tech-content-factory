@@ -6,7 +6,7 @@ The MVP turns text ideas and source notes into:
 
 `ideas → research backlog → 1–5 week plan → human approval → five platform drafts → local package`
 
-It also includes a browser-only static visual composer with content-series and Matte, Glass or Tone-on-Tone modes. A local photo, local brand-profile JSON and local font files can be selected in the browser; none is committed to Git. An ignored `config/brand-profile.local.json` is loaded automatically by the local server when present.
+It also includes a local static visual composer with content-series and Matte, Glass or Tone-on-Tone modes. A local photo, local brand-profile JSON and local font files can be selected in the browser. Checksum-pinned original SVG exports can be discovered from ignored `local-assets/figma/manifest.local.json`; the corporate logo stays optional, while product-specific VK Cloud illustrations require an eligible series and explicit context confirmation. No media asset is committed to Git.
 
 ## Run locally
 

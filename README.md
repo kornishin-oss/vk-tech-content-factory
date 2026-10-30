@@ -18,6 +18,12 @@ npm start
 
 Open <http://127.0.0.1:4173>.
 
+If port `4173` is already occupied, choose another local port:
+
+```bash
+PORT=4174 npm start
+```
+
 ## Verify
 
 ```bash

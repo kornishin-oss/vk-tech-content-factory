@@ -10,6 +10,7 @@ import { createContentPlan, decidePlanItem, revisePlanItem } from "../src/core/p
 import { DEFAULT_POLICY } from "../src/core/policy.mjs";
 import { buildResearchBacklog } from "../src/core/research-agent.mjs";
 import { server } from "../server.mjs";
+import { inspectTrackedPaths } from "../scripts/public-safety-check.mjs";
 
 const now = new Date("2026-10-30T09:00:00Z");
 const root = fileURLToPath(new URL("..", import.meta.url));
@@ -198,6 +199,21 @@ describe("public repository boundary", () => {
     ];
     const text = (await Promise.all(paths.map((path) => readFile(join(root, path), "utf8")))).join("\n");
     assert.doesNotMatch(text, /channel_olkhova|page_bfa2e|\/Users\/|t\.me\/\+/i);
+  });
+
+  test("rejects a force-tracked file inside every local/private directory", async () => {
+    const guarded = [
+      "local-assets/photo.json",
+      "local-data/customer.json",
+      "private/brief.md",
+      "exports/package.json",
+      "generated/post.md",
+    ];
+    const issues = await inspectTrackedPaths(guarded, root);
+    assert.equal(issues.length, guarded.length);
+    for (const path of guarded) {
+      assert.ok(issues.some((issue) => issue.startsWith(path)));
+    }
   });
 });
 

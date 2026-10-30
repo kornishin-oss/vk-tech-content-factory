@@ -7,7 +7,8 @@ const root = fileURLToPath(new URL("..", import.meta.url));
 const forbiddenExtensions = new Set([
   ".docx", ".pptx", ".pdf", ".zip", ".jpg", ".jpeg", ".png", ".webp",
   ".gif", ".mp3", ".wav", ".mp4", ".mov", ".glb", ".gltf", ".fbx", ".obj",
-  ".otf", ".ttf", ".woff", ".woff2", ".pem", ".key", ".p12",
+  ".otf", ".ttf", ".woff", ".woff2", ".pem", ".key", ".p12", ".svg", ".ico",
+  ".psd", ".ai", ".sketch", ".fig",
 ]);
 const forbiddenPathParts = new Set([
   "local-assets", "local-data", "private", "exports", "generated", "node_modules", ".git",
@@ -26,23 +27,43 @@ export function trackedPathsFromGit(repositoryRoot = root) {
   }).split("\0").filter(Boolean);
 }
 
+export function inspectTrackedFile(rel, buffer) {
+  const issues = [];
+  const parts = rel.split("/");
+  if (parts.some((part) => forbiddenPathParts.has(part))) {
+    issues.push(`${rel}: tracked path is inside a local/private directory`);
+    return issues;
+  }
+  const extension = extname(rel).toLocaleLowerCase("en-US");
+  if (forbiddenExtensions.has(extension)) {
+    issues.push(`${rel}: forbidden extension ${extension}`);
+    return issues;
+  }
+  if (buffer.includes(0)) {
+    issues.push(`${rel}: binary content is not allowed in the code-only repository`);
+    return issues;
+  }
+  const text = buffer.toString("utf8");
+  if (text.includes("\uFFFD")) {
+    issues.push(`${rel}: file is not valid UTF-8 text`);
+    return issues;
+  }
+  for (const pattern of forbiddenPatterns) {
+    if (pattern.test(text)) issues.push(`${rel}: matched ${pattern}`);
+  }
+  return issues;
+}
+
 export async function inspectTrackedPaths(paths, repositoryRoot = root) {
   const issues = [];
   for (const rel of paths) {
-    const parts = rel.split("/");
-    if (parts.some((part) => forbiddenPathParts.has(part))) {
-      issues.push(`${rel}: tracked path is inside a local/private directory`);
+    const pathIssues = inspectTrackedFile(rel, Buffer.alloc(0));
+    if (pathIssues.length) {
+      issues.push(...pathIssues);
       continue;
     }
     const path = join(repositoryRoot, rel);
-    const extension = extname(path).toLocaleLowerCase("en-US");
-    if (forbiddenExtensions.has(extension)) issues.push(`${rel}: forbidden extension ${extension}`);
-    if ([".json", ".js", ".mjs", ".md", ".html", ".css", ".yml", ".yaml", ""].includes(extension)) {
-      const text = await readFile(path, "utf8");
-      for (const pattern of forbiddenPatterns) {
-        if (pattern.test(text)) issues.push(`${rel}: matched ${pattern}`);
-      }
-    }
+    issues.push(...inspectTrackedFile(rel, await readFile(path)));
   }
   return issues;
 }

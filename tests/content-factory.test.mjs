@@ -10,7 +10,7 @@ import { createContentPlan, decidePlanItem, revisePlanItem } from "../src/core/p
 import { DEFAULT_POLICY } from "../src/core/policy.mjs";
 import { buildResearchBacklog } from "../src/core/research-agent.mjs";
 import { server } from "../server.mjs";
-import { inspectTrackedPaths } from "../scripts/public-safety-check.mjs";
+import { inspectTrackedFile, inspectTrackedPaths } from "../scripts/public-safety-check.mjs";
 
 const now = new Date("2026-10-30T09:00:00Z");
 const root = fileURLToPath(new URL("..", import.meta.url));
@@ -214,6 +214,18 @@ describe("public repository boundary", () => {
     for (const path of guarded) {
       assert.ok(issues.some((issue) => issue.startsWith(path)));
     }
+  });
+
+  test("scans tracked text regardless of extension and blocks design or binary files", () => {
+    const markerName = ["to", "ken"].join("");
+    const markerValue = ["synthetic", "private", "value"].join("-");
+    const marker = Buffer.from(`${markerName} = '${markerValue}'`, "utf8");
+    for (const path of ["notes.txt", "data.csv", "config.toml", "script.ts"]) {
+      const issues = inspectTrackedFile(path, marker);
+      assert.ok(issues.some((issue) => issue.startsWith(path) && issue.includes("matched")));
+    }
+    assert.ok(inspectTrackedFile("logo.svg", Buffer.from("<svg></svg>")).some((issue) => issue.includes("forbidden extension")));
+    assert.ok(inspectTrackedFile("unknown.bin", Buffer.from([0, 1, 2])).some((issue) => issue.includes("binary content")));
   });
 });
 

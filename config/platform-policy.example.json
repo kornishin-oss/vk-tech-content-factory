@@ -1,0 +1,28 @@
+{
+  "policyVersion": "example-v1",
+  "platformOrder": ["instagram", "vkontakte", "telegram", "max", "linkedin"],
+  "platformLabels": {
+    "instagram": "Instagram",
+    "vkontakte": "ВКонтакте",
+    "telegram": "Telegram",
+    "max": "MAX",
+    "linkedin": "LinkedIn"
+  },
+  "tagLimits": {
+    "instagram": 5,
+    "vkontakte": 8,
+    "telegram": 8,
+    "max": 8,
+    "linkedin": 5
+  },
+  "telegram": {
+    "transitionLabel": "Перейти в связанный канал",
+    "transitionUrl": "https://example.com/channel",
+    "bannedTags": []
+  },
+  "linkedin": {
+    "inviteText": "Продолжить профессиональный диалог",
+    "inviteUrl": "https://example.com/professional-channel",
+    "order": "hashtags_then_invite"
+  }
+}

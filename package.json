@@ -1,0 +1,14 @@
+{
+  "name": "vk-tech-content-factory",
+  "version": "0.1.0",
+  "description": "Local-first content planning and drafting MVP with code-only public repository boundaries.",
+  "type": "module",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "start": "node server.mjs",
+    "test": "node --test",
+    "check:public": "node scripts/public-safety-check.mjs"
+  }
+}

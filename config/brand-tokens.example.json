@@ -1,0 +1,9 @@
+{
+  "name": "Local brand token example",
+  "background": "#10131a",
+  "surface": "#ffffff",
+  "accent": "#7c5cff",
+  "text": "#ffffff",
+  "geometry": "orbits",
+  "overlayOpacity": 0.42
+}

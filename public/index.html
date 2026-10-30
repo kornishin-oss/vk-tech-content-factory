@@ -1,0 +1,205 @@
+<!doctype html>
+<html lang="ru">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Content Factory · Local MVP</title>
+    <meta name="description" content="Локальный контент-завод: идеи, research backlog, план, согласование и пять черновиков.">
+    <link rel="stylesheet" href="/styles.css">
+  </head>
+  <body>
+    <header class="topbar">
+      <div>
+        <p class="eyebrow">LOCAL MVP · CONTENT FIRST</p>
+        <h1>Content Factory</h1>
+        <p class="subtitle">От текстовой идеи до согласованного пакета — без публикации и облачной передачи материалов.</p>
+      </div>
+      <div class="status-stack" aria-label="Статус этапов">
+        <span class="pill active">1 · Контент</span>
+        <span class="pill">2 · 3D профиль</span>
+        <span class="pill">3 · 3D видео</span>
+      </div>
+    </header>
+
+    <aside class="privacy-banner">
+      <strong>Локальная граница:</strong> фото и brand JSON читаются только браузером. Приложение не загружает их на сервер и не публикует материалы.
+    </aside>
+
+    <main class="shell">
+      <nav class="steps" aria-label="Этапы работы">
+        <a href="#intake">01 · Идеи</a>
+        <a href="#plan">02 · План</a>
+        <a href="#drafts">03 · Посты</a>
+        <a href="#visual">04 · Визуал</a>
+        <a href="#package">05 · Пакет</a>
+      </nav>
+
+      <section id="intake" class="panel">
+        <div class="section-heading">
+          <div>
+            <p class="step-label">01 · RESEARCH BACKLOG</p>
+            <h2>Соберите исходные идеи</h2>
+          </div>
+          <span class="boundary">Без web research в MVP</span>
+        </div>
+
+        <div class="grid two">
+          <label>
+            Текстовые идеи — по одной на строку
+            <textarea id="ideas" rows="7" placeholder="Почему результат клиента требует владельца после продажи&#10;Как отличить rollout от реального использования"></textarea>
+          </label>
+          <label>
+            Источники — название | URL | полезная заметка
+            <textarea id="sources" rows="7" placeholder="Публичный профиль | https://example.com/account | Наблюдение о самостоятельной роли CS"></textarea>
+          </label>
+        </div>
+
+        <div class="controls-row">
+          <label class="compact-field">Горизонт
+            <select id="weeks">
+              <option value="1">1 неделя</option>
+              <option value="2" selected>2 недели</option>
+              <option value="3">3 недели</option>
+              <option value="4">4 недели</option>
+              <option value="5">5 недель</option>
+            </select>
+          </label>
+          <label class="compact-field">Постов в неделю
+            <select id="posts-per-week">
+              <option value="1">1</option>
+              <option value="2" selected>2</option>
+              <option value="3">3</option>
+              <option value="4">4</option>
+              <option value="5">5</option>
+            </select>
+          </label>
+          <label class="check">
+            <input id="source-rights" type="checkbox">
+            Эти источники разрешено использовать для подготовки черновиков
+          </label>
+        </div>
+
+        <div class="actions">
+          <button id="build-plan" class="primary">Собрать банк идей и план</button>
+          <button id="load-example" class="secondary">Загрузить синтетический пример</button>
+        </div>
+        <div id="intake-result" class="notice" hidden></div>
+      </section>
+
+      <section id="plan" class="panel muted-section">
+        <div class="section-heading">
+          <div>
+            <p class="step-label">02 · HUMAN REVIEW</p>
+            <h2>План на 1–5 недель</h2>
+          </div>
+          <span id="plan-status" class="boundary">Ещё не сформирован</span>
+        </div>
+        <p class="helper">Меняйте темы и угол подачи. Черновики постов появятся только после человеческого одобрения темы.</p>
+        <div id="plan-list" class="plan-list empty-state">Сначала добавьте идеи и источники.</div>
+      </section>
+
+      <section id="drafts" class="panel muted-section">
+        <div class="section-heading">
+          <div>
+            <p class="step-label">03 · FIVE PLATFORMS</p>
+            <h2>Черновики постов</h2>
+          </div>
+          <span class="boundary">Публикация выключена</span>
+        </div>
+
+        <div class="grid two">
+          <label>
+            Утверждённая тема
+            <select id="approved-item"><option value="">Сначала утвердите тему</option></select>
+          </label>
+          <label>
+            Хэштеги через запятую
+            <input id="tags" type="text" placeholder="лидерство, результатклиента, команда">
+          </label>
+        </div>
+        <label>
+          Подтверждённые тезисы — тезис | проверяемый источник
+          <textarea id="evidence" rows="5" placeholder="Успешный rollout требует измеримого целевого состояния | https://example.com/reference"></textarea>
+        </label>
+        <label>
+          Следующий шаг / CTA
+          <input id="cta" type="text" placeholder="Как вы определяете момент, когда запуск стал использованием?">
+        </label>
+        <label class="check">
+          <input id="evidence-confirmed" type="checkbox">
+          Я проверил(а) тезисы и источники
+        </label>
+        <div class="actions">
+          <button id="generate-drafts" class="primary">Создать пять черновиков</button>
+          <label class="file-button secondary">Загрузить локальную policy-конфигурацию
+            <input id="policy-file" type="file" accept="application/json,.json">
+          </label>
+        </div>
+        <div id="draft-tabs" class="tabs" hidden></div>
+        <div id="draft-editors" class="draft-editors"></div>
+      </section>
+
+      <section id="visual" class="panel muted-section">
+        <div class="section-heading">
+          <div>
+            <p class="step-label">04 · LOCAL VISUAL</p>
+            <h2>Статичный пост из локальных материалов</h2>
+          </div>
+          <span class="boundary">Файлы не покидают браузер</span>
+        </div>
+        <div class="visual-layout">
+          <div class="visual-controls">
+            <label>Заголовок
+              <textarea id="visual-title" rows="4" placeholder="Одна сильная мысль для обложки"></textarea>
+            </label>
+            <label class="file-button secondary">Выбрать локальную фотографию
+              <input id="photo-file" type="file" accept="image/png,image/jpeg,image/webp">
+            </label>
+            <label class="file-button secondary">Выбрать локальный brand JSON
+              <input id="brand-file" type="file" accept="application/json,.json">
+            </label>
+            <label class="check">
+              <input id="asset-rights" type="checkbox">
+              Права на выбранные материалы подтверждены
+            </label>
+            <div class="actions">
+              <button id="render-visual" class="primary">Собрать визуал</button>
+              <button id="download-visual" class="secondary" disabled>Скачать PNG</button>
+            </div>
+            <p id="asset-note" class="helper">Используются нейтральные встроенные цвета, пока локальный brand JSON не выбран.</p>
+          </div>
+          <div class="canvas-wrap">
+            <canvas id="visual-canvas" width="1080" height="1350" aria-label="Предпросмотр статичного поста"></canvas>
+          </div>
+        </div>
+      </section>
+
+      <section id="package" class="panel muted-section">
+        <div class="section-heading">
+          <div>
+            <p class="step-label">05 · LOCAL PACKAGE</p>
+            <h2>Соберите проверяемый пакет</h2>
+          </div>
+          <span class="boundary">Не означает публикацию</span>
+        </div>
+        <label class="check">
+          <input id="author-attestation" type="checkbox">
+          Я проверил(а) ручные правки и не добавил(а) неподтверждённых фактов
+        </label>
+        <div class="actions">
+          <button id="download-package" class="primary">Скачать локальный JSON-пакет</button>
+          <button id="save-workspace" class="secondary">Сохранить черновик в этом браузере</button>
+          <button id="clear-workspace" class="ghost">Очистить локальный черновик</button>
+        </div>
+        <div id="package-result" class="notice" hidden></div>
+      </section>
+    </main>
+
+    <footer>
+      <span>Content Factory · local MVP</span>
+      <span>Content → 3D profile → 3D video</span>
+    </footer>
+
+    <script type="module" src="/app.js"></script>
+  </body>
+</html>

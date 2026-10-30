@@ -1,0 +1,16 @@
+{
+  "ideas": [
+    "Why a customer outcome needs an owner after the sale",
+    "Three signals that a rollout is not yet adoption"
+  ],
+  "sources": [
+    {
+      "title": "Synthetic public reference",
+      "url": "https://example.com/reference",
+      "note": "Demonstration note only; replace locally with a real reviewed source.",
+      "allowedForDrafting": true
+    }
+  ],
+  "weeks": 2,
+  "postsPerWeek": 2
+}

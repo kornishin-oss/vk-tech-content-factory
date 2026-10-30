@@ -10,6 +10,9 @@ const state = {
   photoName: "",
   brandTokens: null,
   brandFileName: "",
+  headlineFont: "Inter",
+  bodyFont: "Inter",
+  fontFiles: [],
 };
 
 const platformOrder = ["instagram", "vkontakte", "telegram", "max", "linkedin"];
@@ -95,42 +98,156 @@ function planStateLabel(status) {
   }[status] || status;
 }
 
+function evidenceStateLabel(status) {
+  return {
+    fact_checked: "Фактура проверена",
+    needs_human_check: "Нужно проверить фактуру",
+    needs_sources: "Фактуры или источника нет",
+  }[status] || "Статус фактуры неизвестен";
+}
+
+function weekWord(value) {
+  if (value === 1) return "неделю";
+  if (value >= 2 && value <= 4) return "недели";
+  return "недель";
+}
+
+function publicationWord(value) {
+  const lastTwo = value % 100;
+  if (lastTwo >= 11 && lastTwo <= 14) return "публикаций";
+  const last = value % 10;
+  if (last === 1) return "публикация";
+  if (last >= 2 && last <= 4) return "публикации";
+  return "публикаций";
+}
+
+function sourceList(item) {
+  const sources = item.evidence?.sources || [];
+  if (!sources.length) return '<p class="evidence-missing">Источник не прикреплён. Утверждение невозможно.</p>';
+  return `<ul class="source-list">${sources.map((source) => `
+    <li>
+      ${source.url
+        ? `<a href="${escapeHtml(source.url)}" target="_blank" rel="noreferrer">${escapeHtml(source.title)}</a>`
+        : `<strong>${escapeHtml(source.title)}</strong>`}
+      <span>передано ${escapeHtml(source.checkedAt || "без даты")}</span>
+    </li>
+  `).join("")}</ul>`;
+}
+
+function planCard(item) {
+  const evidence = item.evidence || {};
+  return `
+    <article class="plan-card" data-plan-item="${item.planItemId}">
+      <div class="plan-meta">
+        <strong>${item.scheduledDate}</strong>
+        <span class="state-${item.status}">${planStateLabel(item.status)}</span><br>
+        v${item.version}
+      </div>
+      <div class="plan-content">
+        <div class="plan-fields">
+          <label><span>Тема</span><input class="plan-topic" value="${escapeHtml(item.topic)}"></label>
+          <label><span>Управленческий вектор</span><input class="plan-angle" value="${escapeHtml(item.angle)}"></label>
+          <label><span>Цель публикации</span><input class="plan-objective" value="${escapeHtml(item.objective)}"></label>
+        </div>
+        <div class="decision-basis">
+          <div class="evidence-heading">
+            <strong>На основании чего утверждаем</strong>
+            <span class="evidence-state evidence-${item.evidenceStatus}">${evidenceStateLabel(item.evidenceStatus)}</span>
+          </div>
+          <label>
+            <span>Фактура из переданных материалов — проверьте и уточните</span>
+            <textarea class="plan-fact" rows="3" placeholder="Конкретный факт, наблюдение, цифра или подтверждённый пример">${escapeHtml(evidence.factSummary || "")}</textarea>
+          </label>
+          <div class="evidence-context">
+            <p><strong>Почему сейчас:</strong> ${escapeHtml(evidence.whyNow || "Не определено")}</p>
+            <p><strong>Что ещё проверить:</strong> ${escapeHtml(evidence.researchQuestion || "Не определено")}</p>
+          </div>
+          <div>
+            <span class="field-caption">Источники-кандидаты</span>
+            ${sourceList(item)}
+          </div>
+          <label class="check evidence-check">
+            <input class="plan-evidence-confirmed" type="checkbox" ${evidence.confirmedByHuman ? "checked" : ""}>
+            Я проверил фактуру и подтверждаю, что она относится к этой теме
+          </label>
+          <p class="evidence-save-hint">После изменения темы, вектора, цели или фактуры сначала сохраните карточку, затем подтвердите фактуру заново.</p>
+        </div>
+      </div>
+      <div class="plan-actions">
+        <button class="secondary save-plan-item">Сохранить</button>
+        <button class="primary approve-plan-item" ${item.evidenceStatus !== "fact_checked" ? "disabled" : ""}>Утвердить</button>
+        <button class="ghost change-plan-item">На доработку</button>
+      </div>
+    </article>
+  `;
+}
+
 function renderPlan() {
   const container = $("#plan-list");
   const badge = $("#plan-status");
+  const title = $("#plan-title");
   if (!state.plan) {
     container.className = "plan-list empty-state";
     container.textContent = "Сначала добавьте идеи и источники.";
     badge.textContent = "Ещё не сформирован";
+    title.textContent = "План — выберите горизонт";
     renderApprovedOptions();
     return;
   }
   container.className = "plan-list";
-  badge.textContent = `${state.plan.horizonWeeks} нед. · ${state.plan.items.length} публикаций`;
-  container.innerHTML = state.plan.items.map((item) => `
-    <article class="plan-card" data-plan-item="${item.planItemId}">
-      <div class="plan-meta">
-        <strong>Неделя ${item.week}</strong>
-        ${item.scheduledDate}<br>
-        <span class="state-${item.status}">${planStateLabel(item.status)}</span><br>
-        v${item.version}
-      </div>
-      <div class="plan-fields">
-        <input class="plan-topic" aria-label="Тема" value="${escapeHtml(item.topic)}">
-        <input class="plan-angle" aria-label="Угол подачи" value="${escapeHtml(item.angle)}">
-      </div>
-      <div class="plan-actions">
-        <button class="secondary save-plan-item">Сохранить</button>
-        <button class="primary approve-plan-item" ${item.evidenceStatus !== "sources_attached" ? "disabled" : ""}>Утвердить</button>
-        <button class="ghost change-plan-item">На доработку</button>
-      </div>
-    </article>
-  `).join("");
+  title.textContent = `План на ${state.plan.horizonWeeks} ${weekWord(state.plan.horizonWeeks)}`;
+  badge.textContent = `${state.plan.horizonWeeks} нед. · ${state.plan.items.length} ${publicationWord(state.plan.items.length)}`;
+  const weeks = [...new Set(state.plan.items.map((item) => item.week))];
+  container.innerHTML = weeks.map((week) => {
+    const items = state.plan.items.filter((item) => item.week === week);
+    const dates = items.map((item) => item.scheduledDate);
+    return `
+      <section class="week-group" aria-labelledby="week-${week}-title">
+        <div class="week-heading">
+          <h3 id="week-${week}-title">Неделя ${week}</h3>
+          <span>${dates[0]} — ${dates.at(-1)} · ${items.length} ${publicationWord(items.length)}</span>
+        </div>
+        <div class="week-items">${items.map(planCard).join("")}</div>
+      </section>
+    `;
+  }).join("");
 
   $$(".save-plan-item").forEach((button) => button.addEventListener("click", savePlanItem));
   $$(".approve-plan-item").forEach((button) => button.addEventListener("click", approvePlanItem));
   $$(".change-plan-item").forEach((button) => button.addEventListener("click", requestPlanChanges));
+  $$(".plan-topic, .plan-angle, .plan-objective, .plan-fact").forEach((input) => input.addEventListener("input", markCardDirty));
+  $$(".plan-evidence-confirmed").forEach((input) => input.addEventListener("input", refreshApprovalButton));
   renderApprovedOptions();
+}
+
+function cardPatch(card) {
+  return {
+    topic: card.querySelector(".plan-topic").value,
+    angle: card.querySelector(".plan-angle").value,
+    objective: card.querySelector(".plan-objective").value,
+    factSummary: card.querySelector(".plan-fact").value,
+    evidenceConfirmed: card.querySelector(".plan-evidence-confirmed").checked,
+    actorLabel: "local-editor",
+  };
+}
+
+function refreshApprovalButton(event) {
+  const card = event.currentTarget.closest("[data-plan-item]");
+  const item = state.plan.items.find((candidate) => candidate.planItemId === card.dataset.planItem);
+  const ready = card.dataset.dirty !== "true"
+    && card.querySelector(".plan-evidence-confirmed").checked
+    && card.querySelector(".plan-fact").value.trim().length > 0
+    && (item?.evidence?.sources?.length || 0) > 0;
+  card.querySelector(".approve-plan-item").disabled = !ready;
+}
+
+function markCardDirty(event) {
+  const card = event.currentTarget.closest("[data-plan-item]");
+  card.dataset.dirty = "true";
+  card.querySelector(".plan-evidence-confirmed").checked = false;
+  card.querySelector(".approve-plan-item").disabled = true;
+  card.querySelector(".evidence-state").textContent = "Сохраните изменения";
+  card.querySelector(".evidence-state").className = "evidence-state evidence-needs_human_check";
 }
 
 async function savePlanItem(event) {
@@ -139,11 +256,7 @@ async function savePlanItem(event) {
     state.plan = await api("/api/plan/revise", {
       plan: state.plan,
       planItemId: card.dataset.planItem,
-      patch: {
-        topic: card.querySelector(".plan-topic").value,
-        angle: card.querySelector(".plan-angle").value,
-        actorLabel: "local-editor",
-      },
+      patch: cardPatch(card),
     });
     renderPlan();
   } catch (error) {
@@ -152,7 +265,23 @@ async function savePlanItem(event) {
 }
 
 async function approvePlanItem(event) {
-  await decideFromCard(event, "approve");
+  const card = event.currentTarget.closest("[data-plan-item]");
+  try {
+    state.plan = await api("/api/plan/revise", {
+      plan: state.plan,
+      planItemId: card.dataset.planItem,
+      patch: cardPatch(card),
+    });
+    state.plan = await api("/api/plan/decide", {
+      plan: state.plan,
+      planItemId: card.dataset.planItem,
+      decision: "approve",
+      meta: { actorLabel: "local-reviewer" },
+    });
+    renderPlan();
+  } catch (error) {
+    alert(error.message);
+  }
 }
 
 async function requestPlanChanges(event) {
@@ -252,6 +381,72 @@ function validColor(value, fallback) {
   return probe.color ? String(value) : fallback;
 }
 
+const FALLBACK_BRAND_PROFILE = {
+  profileStatus: "technical-fallback-unverified",
+  sourceLabel: "Технический fallback — не официальный экспорт VK Tech",
+  author: "EXPERT CONTENT",
+  palette: {
+    black: "#101820",
+    mint: "#7CEDF8",
+    blue: "#0077FF",
+    sophite: "#E7EBEF",
+    white: "#FFFFFF",
+    muted: "#647080",
+  },
+  categoryDefaults: {
+    cs: "matte-mint",
+    leadership: "matte-black",
+    tech: "blue-glass",
+    personal: "sophite-tone",
+    case: "photo-matte",
+  },
+  series: {
+    cs: "CS INSIGHT",
+    leadership: "LEADERSHIP",
+    tech: "SAAS / TECH",
+    personal: "MY VIEW",
+    case: "CLIENT CASE",
+  },
+  modes: {
+    "matte-mint": { background: "mint", text: "black", accent: "black", object: "matte" },
+    "matte-black": { background: "black", text: "white", accent: "mint", object: "matte" },
+    "blue-glass": { background: "blue", text: "white", accent: "mint", object: "glass" },
+    "sophite-tone": { background: "sophite", text: "black", accent: "blue", object: "tone" },
+    "photo-matte": { background: "black", text: "white", accent: "mint", object: "photo" },
+  },
+};
+
+function normalizeBrandProfile(value) {
+  const input = value && typeof value === "object" ? value : {};
+  const rawPalette = input.palette || input;
+  const palette = Object.fromEntries(Object.entries(FALLBACK_BRAND_PROFILE.palette).map(([key, fallback]) => [
+    key,
+    validColor(rawPalette[key], fallback),
+  ]));
+  if (input.background) palette.black = validColor(input.background, palette.black);
+  if (input.accent) palette.blue = validColor(input.accent, palette.blue);
+  if (input.text) palette.white = validColor(input.text, palette.white);
+  return {
+    ...FALLBACK_BRAND_PROFILE,
+    ...input,
+    palette,
+    categoryDefaults: { ...FALLBACK_BRAND_PROFILE.categoryDefaults, ...(input.categoryDefaults || {}) },
+    series: { ...FALLBACK_BRAND_PROFILE.series, ...(input.series || {}) },
+    modes: { ...FALLBACK_BRAND_PROFILE.modes, ...(input.modes || {}) },
+  };
+}
+
+function applyBrandProfile(value, fileName) {
+  state.brandTokens = normalizeBrandProfile(value);
+  state.brandFileName = fileName;
+  const category = $("#visual-category").value;
+  $("#visual-mode").value = state.brandTokens.categoryDefaults[category] || "matte-mint";
+  $("#brand-status").textContent = state.brandTokens.profileStatus === "official-export"
+    ? "Заявлен официальный профиль · приложением не проверено"
+    : "Рабочий локальный профиль · требует сверки";
+  $("#asset-note").textContent = `${state.brandTokens.sourceLabel || fileName}. Профиль загружен локально; логотип и файлы шрифтов не встроены.`;
+}
+
 async function loadPhoto(event) {
   const file = event.target.files?.[0];
   if (!file) return;
@@ -277,45 +472,98 @@ async function loadBrandFile(event) {
   if (!file) return;
   try {
     const value = JSON.parse(await file.text());
-    state.brandTokens = {
-      background: validColor(value.background, "#10131a"),
-      surface: validColor(value.surface, "#ffffff"),
-      accent: validColor(value.accent, "#7c5cff"),
-      text: validColor(value.text, "#ffffff"),
-      geometry: new Set(["orbits", "bars", "none"]).has(value.geometry) ? value.geometry : "orbits",
-      overlayOpacity: Math.min(.85, Math.max(0, Number(value.overlayOpacity ?? .42))),
-    };
-    state.brandFileName = file.name;
-    $("#asset-note").textContent = `Локальная brand-конфигурация выбрана: ${file.name}. Содержимое не отправлено на сервер.`;
+    applyBrandProfile(value, file.name);
   } catch {
     alert("Не удалось прочитать brand JSON.");
     event.target.value = "";
   }
 }
 
-function drawCover(ctx, image, width, height) {
+async function loadLocalBrandProfile() {
+  const response = await fetch("/config/brand-profile.local.json");
+  if (!response.ok) {
+    applyBrandProfile(FALLBACK_BRAND_PROFILE, "technical-fallback");
+    return;
+  }
+  applyBrandProfile(await response.json(), "brand-profile.local.json");
+}
+
+async function loadFontFile(event, role) {
+  const file = event.target.files?.[0];
+  if (!file) return;
+  const family = role === "headline" ? "LocalBrandHeadline" : "LocalBrandText";
+  try {
+    const face = new FontFace(family, await file.arrayBuffer());
+    await face.load();
+    document.fonts.add(face);
+    if (role === "headline") state.headlineFont = family;
+    else state.bodyFont = family;
+    state.fontFiles = [...state.fontFiles.filter((item) => item.role !== role), { role, name: file.name }];
+    $("#asset-note").textContent = `${file.name} загружен только в память браузера для роли «${role === "headline" ? "заголовок" : "текст"}».`;
+  } catch {
+    alert("Не удалось загрузить локальный шрифт.");
+    event.target.value = "";
+  }
+}
+
+function profileColor(profile, value, fallback) {
+  return validColor(profile.palette[value] || value, fallback);
+}
+
+function visualMode(profile) {
+  const selected = $("#visual-mode").value;
+  const mode = profile.modes[selected] || profile.modes[profile.categoryDefaults[$("#visual-category").value]];
+  return {
+    name: selected,
+    background: profileColor(profile, mode.background, profile.palette.black),
+    text: profileColor(profile, mode.text, profile.palette.white),
+    accent: profileColor(profile, mode.accent, profile.palette.mint),
+    object: mode.object || "matte",
+  };
+}
+
+function drawCover(ctx, image, x, y, width, height) {
   const scale = Math.max(width / image.width, height / image.height);
   const drawWidth = image.width * scale;
   const drawHeight = image.height * scale;
-  ctx.drawImage(image, (width - drawWidth) / 2, (height - drawHeight) / 2, drawWidth, drawHeight);
+  ctx.save();
+  ctx.beginPath();
+  ctx.rect(x, y, width, height);
+  ctx.clip();
+  ctx.drawImage(image, x + (width - drawWidth) / 2, y + (height - drawHeight) / 2, drawWidth, drawHeight);
+  ctx.restore();
 }
 
-function drawGeometry(ctx, tokens, width, height) {
+function drawDominantObject(ctx, mode, width, height) {
   ctx.save();
-  ctx.strokeStyle = tokens.accent;
-  ctx.fillStyle = tokens.accent;
-  ctx.globalAlpha = .72;
-  if (tokens.geometry === "bars") {
-    ctx.fillRect(width * .78, 0, width * .035, height);
-    ctx.fillRect(width * .84, 0, width * .012, height * .72);
-  } else if (tokens.geometry === "orbits") {
-    ctx.lineWidth = 8;
-    for (const [radius, alpha] of [[210, .78], [300, .48], [390, .24]]) {
-      ctx.globalAlpha = alpha;
-      ctx.beginPath();
-      ctx.arc(width * .87, height * .16, radius, 0, Math.PI * 1.72);
-      ctx.stroke();
-    }
+  const x = width * .78;
+  const y = height * .49;
+  if (mode.object === "glass") {
+    const glow = ctx.createRadialGradient(x, y, 20, x, y, 430);
+    glow.addColorStop(0, mode.accent);
+    glow.addColorStop(.45, "rgba(255,255,255,.18)");
+    glow.addColorStop(1, "rgba(255,255,255,0)");
+    ctx.fillStyle = glow;
+    ctx.beginPath();
+    ctx.arc(x, y, 430, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.globalAlpha = .58;
+    ctx.strokeStyle = "rgba(255,255,255,.72)";
+    ctx.lineWidth = 10;
+    ctx.beginPath();
+    ctx.ellipse(x, y, 300, 430, -.45, 0, Math.PI * 2);
+    ctx.stroke();
+  } else {
+    ctx.globalAlpha = mode.object === "tone" ? .16 : .9;
+    ctx.fillStyle = mode.accent;
+    ctx.beginPath();
+    ctx.roundRect(width * .62, height * .13, width * .48, height * .75, 240);
+    ctx.fill();
+    ctx.globalAlpha *= .45;
+    ctx.fillStyle = mode.text;
+    ctx.beginPath();
+    ctx.arc(width * .87, height * .72, 250, 0, Math.PI * 2);
+    ctx.fill();
   }
   ctx.restore();
 }
@@ -350,6 +598,7 @@ async function renderVisual() {
         assets: [
           ...(state.photo ? [{ kind: "photo", localReference: state.photoName, rightsConfirmed: true }] : []),
           ...(state.brandTokens ? [{ kind: "brand_tokens", localReference: state.brandFileName, rightsConfirmed: true }] : []),
+          ...state.fontFiles.map((font) => ({ kind: "font", localReference: font.name, rightsConfirmed: true, note: font.role })),
         ],
       });
     }
@@ -359,31 +608,47 @@ async function renderVisual() {
 
   const canvas = $("#visual-canvas");
   const ctx = canvas.getContext("2d");
-  const tokens = state.brandTokens || {
-    background: "#10131a", surface: "#ffffff", accent: "#7c5cff", text: "#ffffff", geometry: "orbits", overlayOpacity: .42,
-  };
+  const profile = state.brandTokens || normalizeBrandProfile(FALLBACK_BRAND_PROFILE);
+  const mode = visualMode(profile);
+  const category = $("#visual-category").value;
+  const series = profile.series[category] || "EXPERT CONTENT";
+  const subtitle = $("#visual-subtitle").value.trim();
   ctx.clearRect(0, 0, canvas.width, canvas.height);
-  ctx.fillStyle = tokens.background;
+  ctx.fillStyle = mode.background;
   ctx.fillRect(0, 0, canvas.width, canvas.height);
-  if (state.photo) drawCover(ctx, state.photo.image, canvas.width, canvas.height);
+  if (state.photo) {
+    drawCover(ctx, state.photo.image, canvas.width * .52, 0, canvas.width * .48, canvas.height);
+    const fade = ctx.createLinearGradient(canvas.width * .46, 0, canvas.width * .72, 0);
+    fade.addColorStop(0, mode.background);
+    fade.addColorStop(1, "rgba(0,0,0,0)");
+    ctx.fillStyle = fade;
+    ctx.fillRect(canvas.width * .42, 0, canvas.width * .36, canvas.height);
+  } else {
+    drawDominantObject(ctx, mode, canvas.width, canvas.height);
+  }
 
-  const gradient = ctx.createLinearGradient(0, canvas.height * .2, 0, canvas.height);
-  gradient.addColorStop(0, `rgba(0,0,0,${tokens.overlayOpacity * .15})`);
-  gradient.addColorStop(.55, `rgba(0,0,0,${tokens.overlayOpacity})`);
-  gradient.addColorStop(1, "rgba(0,0,0,.88)");
-  ctx.fillStyle = gradient;
-  ctx.fillRect(0, 0, canvas.width, canvas.height);
-  drawGeometry(ctx, tokens, canvas.width, canvas.height);
-
-  ctx.fillStyle = tokens.accent;
-  ctx.fillRect(86, 905, 112, 10);
-  ctx.fillStyle = tokens.text;
-  ctx.font = "700 72px system-ui, sans-serif";
+  ctx.fillStyle = mode.text;
+  ctx.font = `700 28px ${state.bodyFont}, system-ui, sans-serif`;
   ctx.textBaseline = "top";
-  wrapText(ctx, title, 86, 950, 900, 86, 4);
-  ctx.font = "600 26px system-ui, sans-serif";
+  ctx.globalAlpha = .78;
+  ctx.fillText(series, 84, 74);
+  ctx.globalAlpha = 1;
+  ctx.font = `700 78px ${state.headlineFont}, system-ui, sans-serif`;
+  wrapText(ctx, title, 84, 250, state.photo ? 560 : 650, 84, 6);
+  if (subtitle) {
+    ctx.font = `500 30px ${state.bodyFont}, system-ui, sans-serif`;
+    ctx.globalAlpha = .8;
+    wrapText(ctx, subtitle, 86, 940, state.photo ? 520 : 620, 42, 3);
+    ctx.globalAlpha = 1;
+  }
+  ctx.fillStyle = mode.accent;
+  ctx.beginPath();
+  ctx.arc(94, 1215, 10, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.fillStyle = mode.text;
+  ctx.font = `600 24px ${state.bodyFont}, system-ui, sans-serif`;
   ctx.globalAlpha = .72;
-  ctx.fillText("LOCAL CONTENT FACTORY · DRAFT", 88, 1255);
+  ctx.fillText(profile.author || "EXPERT CONTENT", 122, 1198);
   ctx.globalAlpha = 1;
   $("#download-visual").disabled = false;
 }
@@ -503,12 +768,18 @@ function escapeHtml(value) {
 
 async function bootstrap() {
   state.policy = await fetch("/config/platform-policy.example.json").then((response) => response.json());
+  await loadLocalBrandProfile();
   $("#build-plan").addEventListener("click", buildPlan);
   $("#load-example").addEventListener("click", loadSyntheticExample);
   $("#policy-file").addEventListener("change", loadPolicyFile);
   $("#generate-drafts").addEventListener("click", generateAllDrafts);
   $("#photo-file").addEventListener("change", loadPhoto);
   $("#brand-file").addEventListener("change", loadBrandFile);
+  $("#headline-font-file").addEventListener("change", (event) => loadFontFile(event, "headline"));
+  $("#body-font-file").addEventListener("change", (event) => loadFontFile(event, "body"));
+  $("#visual-category").addEventListener("change", () => {
+    $("#visual-mode").value = state.brandTokens?.categoryDefaults?.[$("#visual-category").value] || "matte-mint";
+  });
   $("#render-visual").addEventListener("click", renderVisual);
   $("#download-visual").addEventListener("click", downloadVisual);
   $("#download-package").addEventListener("click", downloadPackage);

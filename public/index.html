@@ -22,7 +22,7 @@
     </header>
 
     <aside class="privacy-banner">
-      <strong>Локальная граница:</strong> фото и brand JSON читаются только браузером. Приложение не загружает их на сервер и не публикует материалы.
+      <strong>Локальная граница:</strong> фото и шрифты остаются в памяти браузера; ignored brand profile читает только локальный Node-процесс. Внешней загрузки и публикации нет.
     </aside>
 
     <main class="shell">
@@ -90,11 +90,11 @@
         <div class="section-heading">
           <div>
             <p class="step-label">02 · HUMAN REVIEW</p>
-            <h2>План на 1–5 недель</h2>
+            <h2 id="plan-title">План — выберите горизонт</h2>
           </div>
           <span id="plan-status" class="boundary">Ещё не сформирован</span>
         </div>
-        <p class="helper">Меняйте темы и угол подачи. Черновики постов появятся только после человеческого одобрения темы.</p>
+        <p class="helper">Решение принимается по теме, управленческому вектору и проверенной фактуре. Ссылка без подтверждённого тезиса не позволяет утвердить публикацию.</p>
         <div id="plan-list" class="plan-list empty-state">Сначала добавьте идеи и источники.</div>
       </section>
 
@@ -145,12 +145,35 @@
             <p class="step-label">04 · LOCAL VISUAL</p>
             <h2>Статичный пост из локальных материалов</h2>
           </div>
-          <span class="boundary">Файлы не покидают браузер</span>
+          <span id="brand-status" class="boundary">Бренд-профиль не загружен</span>
         </div>
         <div class="visual-layout">
           <div class="visual-controls">
+            <div class="grid two">
+              <label>Серия материала
+                <select id="visual-category">
+                  <option value="cs">CS INSIGHT</option>
+                  <option value="leadership">LEADERSHIP</option>
+                  <option value="tech">SAAS / TECH</option>
+                  <option value="personal">MY VIEW</option>
+                  <option value="case">CLIENT CASE</option>
+                </select>
+              </label>
+              <label>Визуальный режим
+                <select id="visual-mode">
+                  <option value="matte-mint">Matte Mint</option>
+                  <option value="matte-black">Matte Black</option>
+                  <option value="blue-glass">Blue Glass</option>
+                  <option value="sophite-tone">Sophite Tone-on-Tone</option>
+                  <option value="photo-matte">Photo + Matte</option>
+                </select>
+              </label>
+            </div>
             <label>Заголовок
               <textarea id="visual-title" rows="4" placeholder="Одна сильная мысль для обложки"></textarea>
+            </label>
+            <label>Короткое пояснение
+              <input id="visual-subtitle" type="text" placeholder="Одна строка, которая уточняет мысль">
             </label>
             <label class="file-button secondary">Выбрать локальную фотографию
               <input id="photo-file" type="file" accept="image/png,image/jpeg,image/webp">
@@ -158,6 +181,14 @@
             <label class="file-button secondary">Выбрать локальный brand JSON
               <input id="brand-file" type="file" accept="application/json,.json">
             </label>
+            <div class="grid two">
+              <label class="file-button secondary">Загрузить шрифт заголовка
+                <input id="headline-font-file" type="file" accept=".otf,.ttf,font/otf,font/ttf">
+              </label>
+              <label class="file-button secondary">Загрузить текстовый шрифт
+                <input id="body-font-file" type="file" accept=".otf,.ttf,font/otf,font/ttf">
+              </label>
+            </div>
             <label class="check">
               <input id="asset-rights" type="checkbox">
               Права на выбранные материалы подтверждены
@@ -166,7 +197,7 @@
               <button id="render-visual" class="primary">Собрать визуал</button>
               <button id="download-visual" class="secondary" disabled>Скачать PNG</button>
             </div>
-            <p id="asset-note" class="helper">Используются нейтральные встроенные цвета, пока локальный brand JSON не выбран.</p>
+            <p id="asset-note" class="helper">Проверяется локальный бренд-профиль. Точные фирменные ассеты не передаются в Git.</p>
           </div>
           <div class="canvas-wrap">
             <canvas id="visual-canvas" width="1080" height="1350" aria-label="Предпросмотр статичного поста"></canvas>

@@ -1,9 +1,13 @@
 {
-  "name": "Local brand token example",
-  "background": "#10131a",
-  "surface": "#ffffff",
-  "accent": "#7c5cff",
-  "text": "#ffffff",
-  "geometry": "orbits",
-  "overlayOpacity": 0.42
+  "profileStatus": "example-unverified",
+  "sourceLabel": "Replace with a locally verified brand profile",
+  "author": "EXPERT CONTENT",
+  "palette": {
+    "black": "#101820",
+    "mint": "#7CEDF8",
+    "blue": "#0077FF",
+    "sophite": "#E7EBEF",
+    "white": "#FFFFFF",
+    "muted": "#647080"
+  }
 }

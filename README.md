@@ -6,7 +6,7 @@ The MVP turns text ideas and source notes into:
 
 `ideas → research backlog → 1–5 week plan → human approval → five platform drafts → local package`
 
-It also includes a browser-only static visual composer. A local photo and a local brand-token JSON file can be selected in the browser; neither file is uploaded to the server or committed to Git.
+It also includes a browser-only static visual composer with content-series and Matte, Glass or Tone-on-Tone modes. A local photo, local brand-profile JSON and local font files can be selected in the browser; none is committed to Git. An ignored `config/brand-profile.local.json` is loaded automatically by the local server when present.
 
 ## Run locally
 
@@ -63,3 +63,7 @@ The repository is publicly readable, but no open-source licence has been granted
 3. 3D video through an authenticated provider on the author's computer.
 
 See [Architecture](docs/ARCHITECTURE.md) and [Roadmap](docs/ROADMAP.md).
+
+## Codex and Claude Code
+
+The same repository can be opened by both tools. Shared constraints live in [AGENTS.md](AGENTS.md); Claude Code starts from [CLAUDE.md](CLAUDE.md). A second model is used as a reviewer or bounded collaborator, not as a substitute for original brand assets or owner approval.

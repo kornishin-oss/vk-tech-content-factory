@@ -29,6 +29,9 @@ function backlogWithSource() {
 
 function approvedPlan() {
   const plan = createContentPlan({ backlog: backlogWithSource(), weeks: 1, postsPerWeek: 1 }, now);
+  revisePlanItem(plan, plan.items[0].planItemId, {
+    evidenceConfirmed: true,
+  }, now);
   return decidePlanItem(plan, plan.items[0].planItemId, "approve", { actorLabel: "tester" }, now);
 }
 
@@ -73,6 +76,14 @@ describe("planning and approval", () => {
     assert.equal(plan.items.at(-1).week, 5);
   });
 
+  test("creates and exposes every selected week", () => {
+    const plan = createContentPlan({ backlog: backlogWithSource(), weeks: 2, postsPerWeek: 2 }, now);
+    assert.equal(plan.horizonWeeks, 2);
+    assert.deepEqual([...new Set(plan.items.map((item) => item.week))], [1, 2]);
+    assert.equal(plan.items.filter((item) => item.week === 1).length, 2);
+    assert.equal(plan.items.filter((item) => item.week === 2).length, 2);
+  });
+
   test("rejects a horizon outside one to five weeks", () => {
     assert.throws(
       () => createContentPlan({ backlog: backlogWithSource(), weeks: 6, postsPerWeek: 1 }, now),
@@ -85,8 +96,50 @@ describe("planning and approval", () => {
     const plan = createContentPlan({ backlog, weeks: 1, postsPerWeek: 1 }, now);
     assert.throws(
       () => decidePlanItem(plan, plan.items[0].planItemId, "approve", {}, now),
-      /без разрешённого источника/,
+      /без фактуры, источника и подтверждения человека/,
     );
+  });
+
+  test("does not treat an attached source as confirmed factual basis", () => {
+    const plan = createContentPlan({ backlog: backlogWithSource(), weeks: 1, postsPerWeek: 1 }, now);
+    assert.equal(plan.items[0].evidenceStatus, "needs_human_check");
+    assert.match(plan.items[0].evidence.factSummary, /Synthetic note/);
+    assert.throws(
+      () => decidePlanItem(plan, plan.items[0].planItemId, "approve", {}, now),
+      /без фактуры, источника и подтверждения человека/,
+    );
+  });
+
+  test("approves only after a human confirms the factual basis", () => {
+    const plan = createContentPlan({ backlog: backlogWithSource(), weeks: 1, postsPerWeek: 1 }, now);
+    revisePlanItem(plan, plan.items[0].planItemId, {
+      evidenceConfirmed: true,
+    }, now);
+    assert.equal(plan.items[0].evidenceStatus, "fact_checked");
+    decidePlanItem(plan, plan.items[0].planItemId, "approve", {}, now);
+    assert.equal(plan.items[0].status, "approved");
+  });
+
+  test("invalidates stale confirmation when factual content changes", () => {
+    const plan = createContentPlan({ backlog: backlogWithSource(), weeks: 1, postsPerWeek: 1 }, now);
+    const item = plan.items[0];
+    revisePlanItem(plan, item.planItemId, { evidenceConfirmed: true }, now);
+    assert.equal(item.evidenceStatus, "fact_checked");
+
+    revisePlanItem(plan, item.planItemId, {
+      factSummary: "A changed claim that has not been re-confirmed",
+      evidenceConfirmed: true,
+    }, now);
+    assert.equal(item.evidenceStatus, "needs_human_check");
+    assert.equal(item.evidence.confirmedByHuman, false);
+    assert.throws(
+      () => decidePlanItem(plan, item.planItemId, "approve", {}, now),
+      /без фактуры, источника и подтверждения человека/,
+    );
+
+    revisePlanItem(plan, item.planItemId, { evidenceConfirmed: true }, now);
+    decidePlanItem(plan, item.planItemId, "approve", {}, now);
+    assert.equal(item.status, "approved");
   });
 
   test("manual revision invalidates a previous approval", () => {

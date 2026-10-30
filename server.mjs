@@ -47,6 +47,7 @@ function staticPath(pathname) {
   const publicExamples = new Map([
     ["/config/platform-policy.example.json", join(root, "config", "platform-policy.example.json")],
     ["/config/brand-tokens.example.json", join(root, "config", "brand-tokens.example.json")],
+    ["/config/brand-profile.local.json", join(root, "config", "brand-profile.local.json")],
     ["/examples/synthetic-workspace.json", join(root, "examples", "synthetic-workspace.json")],
   ]);
   if (publicExamples.has(pathname)) return publicExamples.get(pathname);
